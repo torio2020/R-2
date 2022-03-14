@@ -1,0 +1,73 @@
+統計的仮説検定
+
+コインを１０回投げて表が二回出た
+確率0.5で表が出る硬貨を10回投げて表が０～１０枚出る確率を全部出力
+> dbinom(0:10,10,0.5)
+ [1] 0.0009765625 0.0097656250 0.0439453125 0.1171875000
+ [5] 0.2050781250 0.2460937500 0.2050781250 0.1171875000
+ [9] 0.0439453125 0.0097656250 0.0009765625
+ 近似値は
+ 0.001, 0.010, 0.044, 0.117, 0.205, 0.246, 0.205, 0.117, 0.044, 0.010, 0.001
+ 表が二回出る確率は0.044
+ この表が二回出る事象、またはそれより珍しい事象が起こる確率は0.044以下の確率の和である
+ p = 0.001 + 0.010 + 0.044 + 0.010 + 0.001 = 0.11
+ を表が二回出るという事象のp値という
+ p値が非常に小さければ実際に起きた事象あるいはそれより珍しい事象はこの帰無仮説ではほとんど起こらないはず。
+ したがってもし実際にその事象が起きたならば、それは帰無仮説を反証する十分な証拠になる
+ つまり「この硬貨の表が出にくいといっていいか」という質問は「p = 0.11は非常に小さいと言ってよいか」という質問に置き換えることが出来る
+ 有意水準の例とすれば0.05という値が良く使われる
+ つまり偶然では20回に1回も起きないようなことが起きれば「有意」（意味がある）ということ
+ 
+ Rで2項検定
+ > binom.test(2, 10, 0.5)
+
+	Exact binomial test
+
+data:  2 and 10
+number of successes = 2, number of trials = 10,
+p-value = 0.1094　＃これがp値
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.02521073 0.55609546
+sample estimates:
+probability of success 
+                   0.2 
+                   
+10回投げて表が1回
+> binom.test(1, 10, 0.5)
+
+	Exact binomial test
+
+data:  1 and 10
+number of successes = 1, number of trials = 10,
+p-value = 0.02148　＃p値が５％水準で有意
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.002528579 0.445016117
+sample estimates:
+probability of success 
+                   0.1 
+p値だけほしい時は
+> binom.test(1,10,0.5)$p.value
+[1] 0.02148438
+
+p値は標本の大きさ（調べた個数）に依存する。
+硬貨を100回投げて20回表が出た場合
+> binom.test(20,100,0.5)
+
+	Exact binomial test
+
+data:  20 and 100
+number of successes = 20, number of trials = 100,
+p-value = 1.116e-09　非常に小さい（検定の感度が高くなった）
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.1266556 0.2918427
+sample estimates:
+probability of success 
+                   0.2 
+                   
+モデルのパラメータΘを色々変えてp値の変化を調べたものをp値関数という
+> x = (0:100) / 100 #xを0から1まで0.01刻みに増やして
+> y = sapply(x, function(t) binom.test(4,10,t)$p.value) #p値を求める
+> plot(x,y,pch=16) #横軸x, 縦軸p値でプロット
