@@ -1,0 +1,177 @@
+p-0.05が0になる点はuniroot()で求められる
+> uniroot(function(t)binom.test(4,10,t)$p.value-0.05,c(0.1,0.2))
+$root
+[1] 0.1500038
+
+$f.root
+[1] -2.614929e-05
+
+$iter
+[1] 5
+
+$init.it
+[1] NA
+
+$estim.prec
+[1] 6.103516e-05
+
+> uniroot(function(t)binom.test(4,10,t)$p.value-0.05,c(0.6,0.8))
+$root
+[1] 0.709139
+
+$f.root
+[1] -0.009038571
+
+$iter
+[1] 13
+
+$init.it
+[1] NA
+
+$estim.prec
+[1] 7.795256e-05
+
+2項分布のような離散分布ではp値関数が不連続のため上のようなやり方で信頼区間を求めることは少ない
+> binom.test(4,10,0.7091)$p.value
+[1] 0.07312947
+> binom.test(4,10,0.7092)$p.value
+[1] 0.040921
+実際このようにp値が大きく飛ぶ
+不連続でなくするには、片側p値を使えばいい
+下側p値関数(lessをgreaterにすれば上側p値関数)
+> X = (0:100) / 100
+> y = sapply(x, function(t)binom.test(4,10,t,alternative = "less")$p.value)
+> plot(x, y) #本にはpoints(x,y)と出てきたがエラーだった。plot()を使ったらグラフが描画できた
+
+両側p値が0.05以上になる範囲で定義する95％信頼区間は,exactciパッケージを使って求めることが出来る
+このパッケージでは両側p値に基づく方法をminlike(minimum likelihood method,最小尤度法)と呼ぶ：
+> library(exactci)
+ 要求されたパッケージ ssanv をロード中です 
+ 要求されたパッケージ testthat をロード中です 
+Warning messages:
+1:  パッケージ ‘exactci’ はバージョン 4.1.3 の R の下で造られました  
+2:  パッケージ ‘testthat’ はバージョン 4.1.3 の R の下で造られました  
+> binom.exact(4, 10, tsmethod = "minlike")
+
+	Exact two-sided binomial test (sum of
+	minimum likelihood method)
+
+data:  4 and 10
+number of successes = 4, number of trials =
+10, p-value = 0.7539
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.1500 0.7091
+sample estimates:
+probability of success 
+                   0.4 
+                   
+                   
+通常のp値と通常の信頼区間を使う際に生じる問題点の例：
+> binom.test(2,15,0.4)　＃Θ＝０．４
+
+	Exact binomial test
+
+data:  2 and 15
+number of successes = 2, number of trials =
+15, p-value = 0.03646　＃ｐ＝０．０３６だからΘ＝０．４は５％水準で棄却されるはず
+alternative hypothesis: true probability of success is not equal to 0.4
+95 percent confidence interval:
+ 0.01657591 0.40460270　＃９５％信頼区間は[0.01660.4046]でΘ＝０．４を含む
+sample estimates:
+probability of success 
+             0.1333333
+             
+表が出る確率Θ（定数）の硬貨を10回投げると、表が出る回数Xは毎回変わる。つまりXは確率変数。
+従って、binom(X, 10)で求めた95％信頼区間も確率変数。
+このシュミレーションをRで行うと
+> f = function(theta) {
++  x = rbinom(100000, 10, theta)
++  r = sapply(x, function(u){binom.test(u,10)$conf.int})
++  mean(r[1,] <= theta & theta <= r[2,])
++  }
+> f(0.4)
+[1] 0.98205
+> f(0.2)
+[1] 0.99355
+更に効率的にすると
+> CI = sapply(0:10, function(x) binom.test(x,10)$conf.int)
+> f = function(theta){
++ p= dbinom(0:10,10,theta)
++ sum(p * (CI[1,] <= theta & theta <= CI[2,]))
++ }
+> f(0.4)
+[1] 0.9816588
+> f(0.2)
+[1] 0.9936306
+
+1998年の盗難件数508件、1999年の盗難件数516件のとき1999年の盗難件数は去年よりも激増したといえるか
+盗難件数が1998年に起きる確率も1999年に起きる確率も等しいという帰無仮説を立ててRで検定すると：
+> binom.test(508, 508+516,0.5)
+
+	Exact binomial test
+
+data:  508 and 508 + 516
+number of successes = 508, number of trials
+= 1024, p-value = 0.8269　＃p=0.8269では違いがあるとはとても思えない
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.4650308 0.5271792
+sample estimates:
+probability of success 
+             0.4960938
+わざわざ2項検定しなくても、2項分布Binom(n,Θ)の分散がnΘ(1-Θ)であることを使えば、
+Θ=0.5という帰無仮説をもとに分散はn/4 = 1024/4 = 256,
+標準偏差は16である。1024の半分の512からの外れ4は、0.25σでしかない。
+> pnorm(-0.25)*2
+[1] 0.8025873
+
+1000人のうち200人が現内閣を支持すると答えたとすると
+> binom.test(200,1000)
+
+	Exact binomial test
+
+data:  200 and 1000
+number of successes = 200, number of trials
+= 1000, p-value < 2.2e-16　＃2.2 * 10^-16の意味　ほぼ０　ここでは無意味なので無視する
+alternative hypothesis: true probability of success is not equal to 0.5
+95 percent confidence interval:
+ 0.1756206 0.2261594
+sample estimates:
+probability of success 
+                   0.2
+標本サイズnが大きいので2項分布は正規分布で近似できる。
+2項分布の分散がnΘ(1-Θ)であることを使えば観測された割合をr/nとすると、
+Θの95％信頼区間はほぼr/n+-1.96*((r/n)(1-r/n)/n)^1/2となる
+1000人のうち200人がYesと答えた場合にはこの近似ではΘ=0.20+-0.025となり、うえで求めた信頼区間とほぼ一致する
+要は「20％」といっても実際は18％かも22％かもしれず、1，2％の違いに意味はないということ
+
+硬貨を10回投げる
+2項分布Binom(10,Θ)に従う確率変数Ｘの確率分布は
+10CX Θ^X (1-Θ)^10-X
+X=4のとき
+L(Θ) = 10C4 Θ^4 (1-Θ)^6
+というΘの関数になる。これをΘの尤度(likelihood)という
+最尤法：この尤度を最大にするΘであると定める
+対数尤度：
+logL(Θ) = log(10C4) + 4logΘ + 6log(1－Θ)
+Θで微分
+d/dΘ　logL(Θ) = 4/Θ - 6/1-Θ　= 0
+従って0.4が最も尤もらしい
+> logL = function(t) { 4*log(t) + 6*log(1-t)}
+> curve(logL(x) - logL(0.4), xlim = c(0,1))
+> uniroot(function(x) logL(x) - logL(0.4) + 0.5, c(0,0.4))
+$root
+[1] 0.2552841
+
+$f.root
+[1] 8.919206e-05
+
+$iter
+[1] 6
+
+$init.it
+[1] NA
+
+$estim.prec
+[1] 6.103516e-05
