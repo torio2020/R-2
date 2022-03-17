@@ -1,0 +1,130 @@
+初代ポケットガイガーによる計測結果。横軸が時刻で、計測結果から1200秒後までを表す。
+縦棒の位置が放射線(ガンマ線)を検知した瞬間を示す。
+下は机の上にそのまま置いた場合(全部で17カウント),上は市販の「やさしお」(カリウムを多く含む塩)の上に置いた場合(全部で38カウント)
+これは典型的なポアソン過程、つまりランダムに生じる事象の連なりなので、上とほぼ同じものを乱数で作り出した。
+> plot(c(0,1200), c(0,3), type="n", axes=FALSE, xlab = "", ylab="")
+> axis(1)
+> r1 = runif(17) * 1200
+> r2 = runif(38) * 1200
+> segments(r1, 0.5, r1, 1.5)
+> segments(r2, 2, r2, 3)
+
+50個のビンにランダムに500個を投げ込んだ時の分布
+> stripchart(sample(1:50, 500, replace = TRUE),
++ pch=16,method="stack",axes=FALSE,at=0)
+結果は毎分平均10回でも、十数回起こることもあれば、数回しか起こらないこともある。
+平均λのポアソン分布の場合、λ=10であるから、標準偏差は√10=3.16ほどである。
+正規分布で近似すると、+-標準偏差の範囲に収まる確率はほぼ68%であるから68%の確率で10+-3つまり7から13の範囲に入るといえる。
+実際にポアソン分布の確率を足し算してみると
+> sum(10^(7:13) * exp(-10) / factorial(7:13))
+[1] 0.734323
+> ppois(13,10) - ppois(6,10)
+[1] 0.734323
+約73%になる。
+
+上のような荒い意味で1単位時間にλ回事象が起きたとき、その誤差は√λであるという言い方をすることがある。
+しかしこれを文字通りに受け取ると、1単位時間に事象が0回起きたとき、誤差は0であると誤解してしまいがちである。
+回数0の場合も含めて誤差を理解するためには、2項分布の時と同様、信頼区間を用いる。
+一定時間にある事象が10回観測されたとする
+これが平均λのポアソン分布の事象であるとすると、λの信頼区間は次のようにして求められる
+> poisson.test(10)
+
+	Exact Poisson test
+
+data:  10 time base: 1
+number of events = 10, time base = 1,
+p-value = 1.114e-07
+alternative hypothesis: true event rate is not equal to 1
+95 percent confidence interval:　95%信頼区間　
+  4.795389 18.390356
+  これの意味はλ=18.4のポアソン分布であれば10回またはそれより少ない回数しか起こらない確率は2.5%であり、λ=4.8...
+sample estimates:
+event rate 
+        10 
+        
+実際、ppoints(q,λ)は平均λのポアソン分布でq回以下しか起こらない確率を出力する関数
+> ppois(10, 18.390356)
+[1] 0.025
+> ppois(9,4.795389)
+[1] 0.975
+
+同様に一定時間にある事象が10回観測されたなら、λの68%信頼区間は[6.9, 14.3]
+> poisson.test(10, conf.level = 0.682695)
+
+	Exact Poisson test
+
+data:  10 time base: 1
+number of events = 10, time base = 1,
+p-value = 1.114e-07
+alternative hypothesis: true event rate is not equal to 1
+68.2695 percent confidence interval:
+  6.891278 14.266995
+sample estimates:
+event rate 
+
+乱数列xがポアソン過程かどうか調べるには、差分diff(x)が指数分布かどうかを調べればよい
+> dx = diff(x)
+> qqplot(qexp(ppoints(length(dx))),dx)
+> qqline(dx,distribution = function(p){qexp(p)})
+        10
+        
+感度sを求める方法は
+> s = mean(x) / var(x) / m
+よりも下のほうが良いらしいが、よく理解できなかった
+> n = length(x)
+> x1 = x[1:(n-1)]
+> x2 = x[2:n]
+> s = 1 / mean((x1-x2)^2 / (x1+x2)) / m     
+
+全国4364か所の放射能測定器の測定値を使って
+各測定器の平均放射線量と推定感度をプロットしたもの
+> rad = read.csv("rad.csv")
+> mp = names(rad)[-1] #列名から1列目(日時)を除いた測定器名
+> f = function(m){
++ x = rad[,m]
++ n = length(x)
++ x1 = x[1:(n-1)]
++ x2 = x[2:n]
++ c(mean(x, na.rm=TRUE), 1 / mean((x1-x2)^2 / (x1+x2), na.rm = TRUE) / 10)
++ }
+> s = sapply(mp, f)
+> plot(s[1,], s[2,], log="xy", xlab = "μSv/h", ylab = "cpm/(μSv/h)")
+
+ポアソン分布に従う事象がx=5回起こった場合、パラメータλの95%信頼区間は
+> poisson.test(5)
+…
+95 percent confidence interval:
+  1.623486 11.668332
+…
+試算すると
+> 1 - ppois(4, 1.623486)
+[1] 0.02499998
+> ppois(5, 11.668332)
+[1] 0.025
+次のようにもできる
+> poisson.test(5, r=1.623486, alternative = "greater")
+．．．
+number of events = 5, time base = 1,
+p-value = 0.025
+．．．
+
+> poisson.test(5, r=11.668332, alternative = "less")
+．．．
+number of events = 5, time base = 1,
+p-value = 0.025
+．．．
+
+信頼区間の考え方を説明するためによく使われる図を描く
+
+> plot(NULL,xlim=c(0,20),ylim=c(0,20),xaxs="i",yaxs="i",asp=1,xlab=expression(italic(x)),ylab=expression(italic(λ)))
+> for (lambda in seq(0,20,0.1)) {
++     t = sort(dpois(0:100, lambda), decreasing=TRUE)
++     s = cumsum(t)
++     m = t[sum(s < 0.95) + 1]
++     x = range((0:100)[dpois(0:100, lambda) >= m])
++     segments(x[1], lambda, x[2], lambda, col="gray")
++ }
+> abline(v=5)
+> abline(h=1.9701)
+> abline(h=11.7992)
+> axis(4, c(1.9701,11.7992),labels=c("2.0","11.8"))
